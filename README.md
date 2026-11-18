@@ -1,3 +1,5 @@
+This fork includes Atlas Board, a local Excalidraw workspace with history, Tracepin import and MCP editing. Read [the Atlas Board guide](examples/atlas-board/README.md) to run it.
+
 <a href="https://excalidraw.com/" target="_blank" rel="noopener">
   <picture>
     <source media="(prefers-color-scheme: dark)" alt="Excalidraw" srcset="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2_dark.png" />
