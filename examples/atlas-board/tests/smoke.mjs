@@ -33,7 +33,7 @@ const tool = async (name, args = {}) => {
     value: result.isError ? content[0].text : JSON.parse(content[0].text),
   };
 };
-const until = async <T>(probe: () => Promise<T | undefined>): Promise<T> => {
+const until = async (probe) => {
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
     const result = await probe();
