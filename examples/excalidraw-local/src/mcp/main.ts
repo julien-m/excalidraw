@@ -67,7 +67,7 @@ const result = async (action: () => Promise<unknown>) => {
 };
 
 const server = new McpServer(
-  { name: "excalidraw-local", version: "0.1.0" },
+  { name: "excalidraw", version: "0.1.0" },
   {
     instructions:
       "Read a board before mutating it. Draw edits an existing open Excalidraw window. Use the revision returned by read_board or draw. A stale revision is a conflict: read again and rebase by object ID. Coordinates are canvas units; x grows rightward and y downward. Prefer relative placement, stable object IDs and one batch per user request.",

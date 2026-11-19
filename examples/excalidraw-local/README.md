@@ -22,7 +22,7 @@ Stop the preview service before switching versions. To reuse the existing profil
 
 ## MCP
 
-Keep the local service running and open the board you want to edit. In the MCP client, configure a stdio server with command `/absolute/path/to/excalidraw/node_modules/.bin/tsx` and argument `/absolute/path/to/excalidraw/examples/excalidraw-local/src/mcp/main.ts`. If using a non-default data directory, pass the same `EXCALIDRAW_LOCAL_DATA_DIR` to the service and the MCP process.
+Keep the local service running and open the board you want to edit. In the MCP client, configure a stdio server named `excalidraw` with command `/absolute/path/to/excalidraw/node_modules/.bin/tsx` and argument `/absolute/path/to/excalidraw/examples/excalidraw-local/src/mcp/main.ts`. If using a non-default data directory, pass the same `EXCALIDRAW_LOCAL_DATA_DIR` to the service and the MCP process.
 
 Use `list_boards` and `read_board` to get the board ID, its revision and the existing shapes, text, coordinates and bindings. For example, call `draw` on that board with the observed revision and these commands:
 
