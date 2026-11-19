@@ -78,7 +78,7 @@ const BoardLibrary = ({ initial, onOpen }: LibraryProps): ReactElement => {
   return (
     <main className="library">
       <header className="library-header">
-        <h1>Excalidraw Local</h1>
+        <h1>Excalidraw</h1>
         <div className="toolbar-group">
           <button type="button" disabled={busy} onClick={handleTracepin}>
             Importer Tracepin
@@ -168,7 +168,7 @@ const App = ({ initial }: { initial: BoardSummary[] }): ReactElement => {
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
-  throw new Error("Excalidraw Local root missing.");
+  throw new Error("Excalidraw root missing.");
 }
 const root = createRoot(rootElement);
 try {
@@ -183,7 +183,7 @@ try {
 } catch (error) {
   root.render(
     <main className="library">
-      <h1>Excalidraw Local</h1>
+      <h1>Excalidraw</h1>
       <p role="alert">{errorText(error)}</p>
     </main>,
   );

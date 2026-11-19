@@ -1,6 +1,6 @@
-# Excalidraw Local
+# Excalidraw
 
-Excalidraw Local is a local Excalidraw workspace for brainstorming together with an MCP client. It is a separate application workspace in the Excalidraw fork. It uses the fork's React, TypeScript, Vite, Yarn Classic and Vitest stack.
+This workspace in the Excalidraw fork adds local boards and MCP editing. It uses the fork's React, TypeScript, Vite, Yarn Classic and Vitest stack.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ yarn workspace @local/excalidraw build
 yarn workspace @local/excalidraw start
 ```
 
-Open [Excalidraw Local locally](http://127.0.0.1:4320). The service binds to loopback. On macOS its documents are under `~/Library/Application Support/Excalidraw Local/boards/`. Set `EXCALIDRAW_LOCAL_DATA_DIR` for a separate profile, and `EXCALIDRAW_LOCAL_PORT` for a different free port. Run one service per data directory. Fonts and the editor are bundled so the canvas can run offline.
+Open [the local editor](http://127.0.0.1:4320). The service binds to loopback. On macOS its documents are under `~/Library/Application Support/Excalidraw Local/boards/`. Set `EXCALIDRAW_LOCAL_DATA_DIR` for a separate profile, and `EXCALIDRAW_LOCAL_PORT` for a different free port. Run one service per data directory. Fonts and the editor are bundled so the canvas can run offline.
 
 **Archiver** saves an immutable version. **Ouvrir une copie** restores that version to a new editable board. **Dupliquer** copies the current scene. **Copier et fermer** copies a PNG of the scene to the clipboard, archives the editable board and goes back to the library. **Exporter** downloads the scene and image bytes in a standard `.excalidraw` document. **Ouvrir un fichier** accepts these documents in any profile.
 
@@ -55,7 +55,7 @@ Use `move` for offsets, `arrange` for a row or column with an explicit gap, and 
 
 Select **Importer Tracepin** in the library. By default on macOS the service reads Tracepin's local board folder. To work from a backup set `EXCALIDRAW_LOCAL_TRACEPIN_BOARDS_DIR` to a folder containing `boards.json` and `assets/`.
 
-The import keeps the original board IDs and history dates, checks each source image against its original hash, and keeps an editable copy of each historical snapshot. Reimporting the same IDs leaves your edits in Excalidraw Local intact. Fonts, gradients and some Tracepin text bounds can render differently. Pins and comments become text, with source properties kept on their objects. Keep the source archive when visual fidelity matters.
+The import keeps the original board IDs and history dates, checks each source image against its original hash, and keeps an editable copy of each historical snapshot. Reimporting the same IDs leaves your edits in Excalidraw intact. Fonts, gradients and some Tracepin text bounds can render differently. Pins and comments become text, with source properties kept on their objects. Keep the source archive when visual fidelity matters.
 
 ## Reuse and verify
 

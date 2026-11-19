@@ -1,4 +1,4 @@
-# Excalidraw Local
+# Excalidraw
 
 An independent fork of Excalidraw for editing diagrams with a mouse and a local MCP client. It adds local saving, editable history, Tracepin board import and portable `.excalidraw` files.
 

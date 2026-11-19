@@ -46,7 +46,7 @@ export class CommandInbox {
         reject(
           new BoardError(
             408,
-            "Ouvrez le tableau dans Excalidraw Local pour appliquer la commande.",
+            "Ouvrez le tableau dans Excalidraw pour appliquer la commande.",
           ),
         );
       }, this.timeout);

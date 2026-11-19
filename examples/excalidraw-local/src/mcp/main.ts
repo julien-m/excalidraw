@@ -30,7 +30,7 @@ const call = async (
       JSON.parse(await readFile(runtimePath, "utf8")),
     );
   } catch {
-    throw new Error("Démarrez d’abord le service local Excalidraw Local.");
+    throw new Error("Démarrez d’abord le service local Excalidraw.");
   }
   const response = await fetch(`${runtime.origin}/api/${path}`, {
     method,
@@ -70,7 +70,7 @@ const server = new McpServer(
   { name: "excalidraw-local", version: "0.1.0" },
   {
     instructions:
-      "Read a board before mutating it. Draw edits an existing open Excalidraw Local window. Use the revision returned by read_board or draw. A stale revision is a conflict: read again and rebase by object ID. Coordinates are canvas units; x grows rightward and y downward. Prefer relative placement, stable object IDs and one batch per user request.",
+      "Read a board before mutating it. Draw edits an existing open Excalidraw window. Use the revision returned by read_board or draw. A stale revision is a conflict: read again and rebase by object ID. Coordinates are canvas units; x grows rightward and y downward. Prefer relative placement, stable object IDs and one batch per user request.",
   },
 );
 
@@ -78,7 +78,7 @@ server.registerTool(
   "list_boards",
   {
     description:
-      "List local Excalidraw Local documents, including copies imported from Tracepin.",
+      "List local Excalidraw boards, including copies imported from Tracepin.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true },
   },
@@ -89,7 +89,7 @@ server.registerTool(
   "create_board",
   {
     description:
-      "Create a local Excalidraw board. Open it in Excalidraw Local before drawing.",
+      "Create a local Excalidraw board. Open it in Excalidraw before drawing.",
     inputSchema: z.object({ name: label }),
     annotations: { destructiveHint: false },
   },

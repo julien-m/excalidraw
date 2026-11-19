@@ -220,7 +220,7 @@ try {
   });
   await page.getByRole("button", { name: "Copier et fermer" }).click();
   await page
-    .getByRole("heading", { name: "Excalidraw Local", exact: true })
+    .getByRole("heading", { name: "Excalidraw", exact: true })
     .waitFor({ timeout: 8_000 });
   const copied = await page.evaluate(async () =>
     (await navigator.clipboard.read()).flatMap((item) => [...item.types]),

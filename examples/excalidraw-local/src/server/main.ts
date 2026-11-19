@@ -254,7 +254,7 @@ const serve = async (
   if (!metadata?.isFile()) {
     throw new BoardError(
       404,
-      "Fichier introuvable. Lancez d’abord le build Excalidraw Local.",
+      "Fichier introuvable. Lancez d’abord le build Excalidraw.",
     );
   }
   response.writeHead(200, {
@@ -324,7 +324,7 @@ server.listen(port, host, () => {
         flag: "wx",
       });
       await rename(staging, runtimePath);
-      process.stdout.write(`Excalidraw Local · ${origin}\n`);
+      process.stdout.write(`Excalidraw · ${origin}\n`);
     } catch {
       console.error(JSON.stringify({ event: "board_runtime_failed" }));
       server.close();
