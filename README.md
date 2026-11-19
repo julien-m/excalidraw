@@ -1,3 +1,23 @@
+# Excalidraw
+
+An independent fork of Excalidraw for editing diagrams with a mouse and a local MCP client. It adds local saving, editable history, Tracepin board import and portable `.excalidraw` files.
+
+## Run the local editor
+
+Use Node 24 and Yarn 1.22.22 from the repository root.
+
+```sh
+yarn install --frozen-lockfile
+yarn workspace @local/excalidraw build
+yarn workspace @local/excalidraw start
+```
+
+Open [the local editor](http://127.0.0.1:4320). Read [the workspace guide](examples/excalidraw-local/README.md) for MCP setup, backups, Tracepin import and verification. On macOS, boards live in `~/Library/Application Support/Excalidraw Local/boards/`.
+
+## Upstream Excalidraw
+
+The original project and its MIT license are available in [the upstream repository](https://github.com/excalidraw/excalidraw).
+
 <a href="https://excalidraw.com/" target="_blank" rel="noopener">
   <picture>
     <source media="(prefers-color-scheme: dark)" alt="Excalidraw" srcset="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2_dark.png" />
