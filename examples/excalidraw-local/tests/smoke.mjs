@@ -6,9 +6,9 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { chromium } from "playwright";
 
-const origin = process.env.ATLAS_BOARD_TEST_URL ?? "http://127.0.0.1:4320";
-const profile = process.env.ATLAS_BOARD_DATA_DIR;
-const archive = process.env.ATLAS_TRACEPIN_BOARDS_DIR;
+const origin = process.env.EXCALIDRAW_LOCAL_TEST_URL ?? "http://127.0.0.1:4320";
+const profile = process.env.EXCALIDRAW_LOCAL_DATA_DIR;
+const archive = process.env.EXCALIDRAW_LOCAL_TRACEPIN_BOARDS_DIR;
 assert.ok(
   profile && archive,
   "Use the isolated verification service and copied Tracepin archive.",
@@ -17,12 +17,12 @@ const original = JSON.parse(
   await readFile(join(archive, "boards.json"), "utf8"),
 );
 const browser = await chromium.launch({ channel: "chrome", headless: true });
-const client = new Client({ name: "atlas-board-smoke", version: "1.0.0" });
+const client = new Client({ name: "excalidraw-local-smoke", version: "1.0.0" });
 const transport = new StdioClientTransport({
   command: process.execPath,
   args: ["--import", "tsx", "src/mcp/main.ts"],
   cwd: new URL("../", import.meta.url).pathname,
-  env: { ATLAS_BOARD_DATA_DIR: profile },
+  env: { EXCALIDRAW_LOCAL_DATA_DIR: profile },
 });
 const tool = async (name, args = {}) => {
   const result = await client.callTool({ name, arguments: args });
@@ -220,7 +220,7 @@ try {
   });
   await page.getByRole("button", { name: "Copier et fermer" }).click();
   await page
-    .getByRole("heading", { name: "Atlas Board", exact: true })
+    .getByRole("heading", { name: "Excalidraw Local", exact: true })
     .waitFor({ timeout: 8_000 });
   const copied = await page.evaluate(async () =>
     (await navigator.clipboard.read()).flatMap((item) => [...item.types]),

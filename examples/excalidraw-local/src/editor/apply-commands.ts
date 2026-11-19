@@ -3,15 +3,15 @@ import {
   FONT_FAMILY,
   newElementWith,
   restoreElements,
-} from "@atlas/excalidraw-sdk";
+} from "@local/excalidraw-sdk";
 
 import type {
   ExcalidrawElement,
   OrderedExcalidrawElement,
   ExcalidrawLinearElement,
   ExcalidrawArrowElement,
-} from "@atlas/excalidraw-sdk/element/types";
-import type { BinaryFiles } from "@atlas/excalidraw-sdk/types";
+} from "@local/excalidraw-sdk/element/types";
+import type { BinaryFiles } from "@local/excalidraw-sdk/types";
 
 import type { BoardCommand } from "../board/commands";
 
@@ -309,7 +309,7 @@ export const applyCommands = async (
       const width = command.width ?? Math.min(size.width, 640);
       const height = command.height ?? (width * size.height) / size.width;
       const fileId = crypto.randomUUID() as keyof BinaryFiles &
-        import("@atlas/excalidraw-sdk/element/types").FileId;
+        import("@local/excalidraw-sdk/element/types").FileId;
       files[fileId] = {
         id: fileId,
         dataURL: command.dataURL as BinaryFiles[string]["dataURL"],

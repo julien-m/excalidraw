@@ -2,7 +2,7 @@ import {
   convertToExcalidrawElements,
   FONT_FAMILY,
   restoreElements,
-} from "@atlas/excalidraw-sdk";
+} from "@local/excalidraw-sdk";
 
 import { sceneSchema } from "../board/scene";
 
@@ -10,7 +10,7 @@ import type {
   ExcalidrawFreeDrawElement,
   ExcalidrawElement,
   FileId,
-} from "@atlas/excalidraw-sdk/element/types";
+} from "@local/excalidraw-sdk/element/types";
 
 import type { Scene } from "../board/scene";
 import type {

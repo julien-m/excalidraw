@@ -1,5 +1,5 @@
 {
-  "name": "@atlas/board",
+  "name": "@local/excalidraw",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "lint": "eslint --max-warnings=0 --ext .ts,.tsx src"
   },
   "dependencies": {
-    "@atlas/excalidraw-laser": "npm:@excalidraw/laser-pointer@1.3.1",
-    "@atlas/excalidraw-sdk": "npm:@excalidraw/excalidraw@0.18.1",
+    "@local/excalidraw-laser": "npm:@excalidraw/laser-pointer@1.3.1",
+    "@local/excalidraw-sdk": "npm:@excalidraw/excalidraw@0.18.1",
     "@modelcontextprotocol/server": "2.4.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",

@@ -1,4 +1,4 @@
-import { Excalidraw } from "@atlas/excalidraw-sdk";
+import { Excalidraw } from "@local/excalidraw-sdk";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -6,7 +6,7 @@ import { BoardSession } from "./board-session";
 
 import { request } from "./client";
 
-import type { ExcalidrawInitialDataState } from "@atlas/excalidraw-sdk/types";
+import type { ExcalidrawInitialDataState } from "@local/excalidraw-sdk/types";
 import type { ReactElement } from "react";
 
 import type { Board, Checkpoint } from "../board/scene";
@@ -111,7 +111,12 @@ export const BoardEditor = ({
     void run(async () => {
       const scene = session.exportScene();
       download(
-        { type: "excalidraw", version: 2, source: "atlas-board", ...scene },
+        {
+          type: "excalidraw",
+          version: 2,
+          source: "excalidraw-local",
+          ...scene,
+        },
         `${board.name}.excalidraw`,
       );
     });

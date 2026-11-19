@@ -13,7 +13,7 @@ export const request = async <T>(
   const response = await fetch(`/api/${path}`, {
     method,
     headers: {
-      "X-Atlas-Board": "1",
+      "X-Excalidraw-Local": "1",
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),

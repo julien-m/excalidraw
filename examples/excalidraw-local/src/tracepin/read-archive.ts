@@ -19,7 +19,7 @@ const formats: Readonly<Record<string, string>> = {
 /** Reads the selected Tracepin directory and checks source image hashes before returning a portable copy. */
 export const readTracepinArchive = async (): Promise<TracepinArchive> => {
   const directory =
-    process.env.ATLAS_TRACEPIN_BOARDS_DIR ??
+    process.env.EXCALIDRAW_LOCAL_TRACEPIN_BOARDS_DIR ??
     join(homedir(), "Library", "Application Support", "Tracepin", "Boards");
   const manifest = join(directory, "boards.json");
   let sourceBytes = (await stat(manifest)).size;

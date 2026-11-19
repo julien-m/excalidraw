@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const sdk = dirname(
-  createRequire(import.meta.url).resolve("@atlas/excalidraw-sdk"),
+  createRequire(import.meta.url).resolve("@local/excalidraw-sdk"),
 );
 const fontFallback =
   /"ASSETS_FALLBACK_URL",`https:\/\/esm\.sh\/[^\n]+?\/dist\/prod\/`/;
@@ -37,7 +37,7 @@ export default defineConfig({
     },
   ],
   resolve: {
-    alias: { "@excalidraw/laser-pointer": "@atlas/excalidraw-laser" },
+    alias: { "@excalidraw/laser-pointer": "@local/excalidraw-laser" },
   },
   build: { target: "es2022" },
 });

@@ -31,7 +31,7 @@ const port = z.coerce
   .int()
   .min(1024)
   .max(65535)
-  .parse(process.env.ATLAS_BOARD_PORT ?? "4320");
+  .parse(process.env.EXCALIDRAW_LOCAL_PORT ?? "4320");
 const authority = `${host}:${port}`;
 const origin = `http://${authority}`;
 const distribution = fileURLToPath(new URL("../../dist/", import.meta.url));
@@ -101,7 +101,7 @@ const routeApi = async (
   if (
     !mcp &&
     (request.headers["sec-fetch-site"] !== "same-origin" ||
-      request.headers["x-atlas-board"] !== "1")
+      request.headers["x-excalidraw-local"] !== "1")
   ) {
     throw new BoardError(403, "Requête locale non autorisée.");
   }
@@ -254,7 +254,7 @@ const serve = async (
   if (!metadata?.isFile()) {
     throw new BoardError(
       404,
-      "Fichier introuvable. Lancez d’abord le build Atlas Board.",
+      "Fichier introuvable. Lancez d’abord le build Excalidraw Local.",
     );
   }
   response.writeHead(200, {
@@ -324,7 +324,7 @@ server.listen(port, host, () => {
         flag: "wx",
       });
       await rename(staging, runtimePath);
-      process.stdout.write(`Atlas Board · ${origin}\n`);
+      process.stdout.write(`Excalidraw Local · ${origin}\n`);
     } catch {
       console.error(JSON.stringify({ event: "board_runtime_failed" }));
       server.close();

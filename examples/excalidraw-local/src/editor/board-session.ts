@@ -2,7 +2,7 @@ import {
   CaptureUpdateAction,
   exportToBlob,
   hashElementsVersion,
-} from "@atlas/excalidraw-sdk";
+} from "@local/excalidraw-sdk";
 
 import { applyCommands } from "./apply-commands";
 
@@ -12,8 +12,8 @@ import type {
   AppState,
   BinaryFiles,
   ExcalidrawImperativeAPI,
-} from "@atlas/excalidraw-sdk/types";
-import type { OrderedExcalidrawElement } from "@atlas/excalidraw-sdk/element/types";
+} from "@local/excalidraw-sdk/types";
+import type { OrderedExcalidrawElement } from "@local/excalidraw-sdk/element/types";
 
 import type { PendingCommand } from "../board/commands";
 import type { Board, Checkpoint, Scene } from "../board/scene";
