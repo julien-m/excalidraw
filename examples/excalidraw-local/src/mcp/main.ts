@@ -127,6 +127,10 @@ server.registerTool(
         y: item.y,
         width: item.width,
         height: item.height,
+        strokeColor: item.strokeColor,
+        backgroundColor: item.backgroundColor,
+        elbowed: item.elbowed,
+        endArrowhead: item.endArrowhead,
         text: item.text,
         containerId: item.containerId,
         boundElements: item.boundElements,
@@ -154,7 +158,7 @@ server.registerTool(
   "draw",
   {
     description:
-      "Apply an undoable, atomic batch in the open native Excalidraw editor. Add labeled shapes, free text and inline images, connect block IDs, move sets, align/space in rows or columns and edit labels. Placement accepts world coordinates or relativeTo plus direction and gap. ID references can target objects created earlier in the same batch.",
+      "Apply an undoable, atomic batch in the open native Excalidraw editor. Add labeled shapes with solid fill, free text and inline images. Connect block IDs with straight or elbow arrows, or use arrowhead:false for mind-map branches. Move sets, align/space in rows or columns and edit labels. Placement accepts world coordinates or relativeTo plus direction and gap. ID references can target objects created earlier in the same batch.",
     inputSchema: commandBatch,
     annotations: { destructiveHint: false },
   },

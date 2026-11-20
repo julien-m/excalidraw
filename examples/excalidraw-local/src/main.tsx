@@ -1,190 +1,132 @@
+/** Entry point: switches between the board library and one open board, mirrored in `?board=`. */
 import "@local/excalidraw-sdk/index.css";
-import { lazy, StrictMode, Suspense, useState } from "react";
+import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 
 import { createRoot } from "react-dom/client";
 
-import { sceneSchema } from "./board/scene";
-
+import { boardId } from "./board/scene";
 import { request } from "./editor/client";
+import { BoardLibrary } from "./library/board-library";
+import { t } from "./ui/messages";
 
 import "./style.css";
 
-import type { ChangeEvent, FormEvent, ReactElement } from "react";
-import type { Board, BoardSummary } from "./board/scene";
-import type { TracepinArchive } from "./tracepin/archive";
+import type { ReactElement } from "react";
+import type { Board } from "./board/scene";
 
 const BoardEditor = lazy(async () => ({
   default: (await import("./editor/board-editor")).BoardEditor,
 }));
 
+const boardParam = "board";
+
+type View =
+  | { kind: "opening"; id: string }
+  | { kind: "library"; notice?: string }
+  | { kind: "board"; board: Board };
+
 const errorText = (error: unknown): string =>
-  error instanceof Error ? error.message : "Impossible d’ouvrir le tableau.";
+  error instanceof Error ? error.message : t("app.genericError");
 
-interface LibraryProps {
-  initial: BoardSummary[];
-  onOpen: (board: Board) => void;
-}
-
-const BoardLibrary = ({ initial, onOpen }: LibraryProps): ReactElement => {
-  const [boards, setBoards] = useState(initial);
-  const [name, setName] = useState("");
-  const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const run = async (action: () => Promise<void>): Promise<void> => {
-    setBusy(true);
-    setNotice("");
-    try {
-      await action();
-    } catch (error) {
-      setNotice(errorText(error));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleCreate = (event: FormEvent): void => {
-    event.preventDefault();
-    void run(async () =>
-      onOpen(await request<Board>("boards", "POST", { name })),
-    );
-  };
-  const handleOpen = (id: string): void => {
-    void run(async () => onOpen(await request<Board>(`boards/${id}`)));
-  };
-  const handleTracepin = (): void => {
-    void run(async () => {
-      const archive = await request<TracepinArchive>("tracepin");
-      const { convertArchive } = await import("./tracepin/convert-archive");
-      const pages = convertArchive(archive);
-      const ids = await request<string[]>("tracepin", "POST", { pages });
-      setBoards(await request("boards"));
-      setNotice(`${ids.length} tableaux Tracepin disponibles.`);
-    });
-  };
-  const handleImport = (event: ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) {
-      return;
-    }
-    void run(async () => {
-      const scene = sceneSchema.parse(JSON.parse(await file.text()));
-      const title = file.name.replace(/\.excalidraw$/i, "").slice(0, 180);
-      onOpen(await request<Board>("boards", "POST", { name: title, scene }));
-    });
-  };
-
-  return (
-    <main className="library">
-      <header className="library-header">
-        <h1>Excalidraw</h1>
-        <div className="toolbar-group">
-          <button type="button" disabled={busy} onClick={handleTracepin}>
-            Importer Tracepin
-          </button>
-          <label className="file-button">
-            Ouvrir un fichier
-            <input
-              type="file"
-              accept=".excalidraw,application/json"
-              onChange={handleImport}
-              disabled={busy}
-            />
-          </label>
-        </div>
-      </header>
-      <form className="toolbar-group" onSubmit={handleCreate}>
-        <input
-          aria-label="Nom du tableau"
-          placeholder="Nom du tableau"
-          value={name}
-          maxLength={180}
-          onChange={(event) => setName(event.target.value)}
-          required
-        />
-        <button
-          type="submit"
-          className="primary"
-          disabled={busy || !name.trim()}
-        >
-          Créer un tableau
-        </button>
-      </form>
-      <output aria-live="polite">{notice}</output>
-      <section className="board-list" aria-label="Tableaux">
-        {boards.length === 0 ? (
-          <p>Aucun tableau.</p>
-        ) : (
-          <ul>
-            {boards.map((board) => (
-              <li key={board.id}>
-                <button
-                  type="button"
-                  onClick={() => handleOpen(board.id)}
-                  disabled={busy}
-                >
-                  <strong>{board.name}</strong>
-                  <time dateTime={board.updatedAt}>
-                    {new Date(board.updatedAt).toLocaleString("fr-FR")}
-                  </time>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
-  );
+const requestedBoard = (view: Window): string | null => {
+  const value = new URLSearchParams(view.location.search).get(boardParam);
+  return value && boardId.safeParse(value).success ? value : null;
 };
 
-const App = ({ initial }: { initial: BoardSummary[] }): ReactElement => {
-  const [active, setActive] = useState<Board | null>(null);
-  const [boards, setBoards] = useState(initial);
-  const [failure, setFailure] = useState("");
-  const handleClose = async (): Promise<void> => {
-    try {
-      setBoards(await request("boards"));
-      setActive(null);
-      setFailure("");
-    } catch (error) {
-      setFailure(errorText(error));
+/**
+ * Rewrites the address without a navigation. The hash survives while a board stays open:
+ * it carries `#addLibrary=` installs that the lazily loaded editor reads after mounting.
+ */
+const showInAddress = (view: Window, id: string | null): void => {
+  const url = new URL(view.location.href);
+  if (id) {
+    url.searchParams.set(boardParam, id);
+  } else {
+    url.searchParams.delete(boardParam);
+    url.hash = "";
+  }
+  view.history.replaceState(null, "", url);
+};
+
+const returnUrlFor = (view: Window, id: string): string =>
+  `${view.location.origin}${view.location.pathname}?${boardParam}=${id}`;
+
+/** @param window The window owning the mounted root, per the fork's DOM access rule. */
+const App = ({ window: owner }: { window: Window }): ReactElement => {
+  const [view, setView] = useState<View>(() => {
+    const id = requestedBoard(owner);
+    return id ? { kind: "opening", id } : { kind: "library" };
+  });
+
+  useEffect(() => {
+    if (view.kind !== "opening") {
+      return;
     }
+    let current = true;
+    void (async () => {
+      try {
+        const board = await request<Board>(`boards/${view.id}`);
+        if (current) {
+          setView({ kind: "board", board });
+        }
+      } catch (error) {
+        if (current) {
+          showInAddress(owner, null);
+          setView({ kind: "library", notice: errorText(error) });
+        }
+      }
+    })();
+    return () => {
+      current = false;
+    };
+  }, [view, owner]);
+
+  const handleOpen = (board: Board): void => {
+    showInAddress(owner, board.id);
+    setView({ kind: "board", board });
   };
-  return active ? (
-    <>
-      <BoardEditor
-        key={active.id}
-        board={active}
-        onOpen={setActive}
-        onClose={() => void handleClose()}
-      />
-      {failure && <p role="alert">{failure}</p>}
-    </>
-  ) : (
-    <BoardLibrary initial={boards} onOpen={setActive} />
-  );
+  const handleClose = (notice?: string): void => {
+    showInAddress(owner, null);
+    setView({ kind: "library", notice });
+  };
+
+  switch (view.kind) {
+    case "opening":
+      return (
+        <p className="page-state" role="status">
+          {t("app.opening")}
+        </p>
+      );
+    case "library":
+      return <BoardLibrary onOpen={handleOpen} initialNotice={view.notice} />;
+    case "board":
+      return (
+        <BoardEditor
+          key={view.board.id}
+          board={view.board}
+          libraryReturnUrl={returnUrlFor(owner, view.board.id)}
+          onOpen={handleOpen}
+          onClose={handleClose}
+        />
+      );
+  }
 };
 
 const rootElement = document.getElementById("root");
-if (!rootElement) {
+const ownerWindow = rootElement?.ownerDocument.defaultView;
+if (!rootElement || !ownerWindow) {
   throw new Error("Excalidraw root missing.");
 }
-const root = createRoot(rootElement);
-try {
-  const initial = await request<BoardSummary[]>("boards");
-  root.render(
-    <StrictMode>
-      <Suspense fallback={<p role="status">Ouverture du tableau…</p>}>
-        <App initial={initial} />
-      </Suspense>
-    </StrictMode>,
-  );
-} catch (error) {
-  root.render(
-    <main className="library">
-      <h1>Excalidraw</h1>
-      <p role="alert">{errorText(error)}</p>
-    </main>,
-  );
-}
+createRoot(rootElement).render(
+  <StrictMode>
+    <Suspense
+      fallback={
+        <p className="page-state" role="status">
+          {t("app.opening")}
+        </p>
+      }
+    >
+      <App window={ownerWindow} />
+    </Suspense>
+  </StrictMode>,
+);

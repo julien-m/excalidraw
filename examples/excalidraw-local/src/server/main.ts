@@ -12,6 +12,7 @@ import { commandBatch } from "../board/commands";
 import {
   boardId,
   label,
+  libraryChangesSchema,
   maxRequestBytes,
   objectId,
   revision,
@@ -22,6 +23,7 @@ import { readTracepinArchive } from "../tracepin/read-archive";
 import { BoardError, BoardStore } from "./board-store";
 import { CommandInbox } from "./command-inbox";
 import { dataDirectory, runtimePath } from "./config";
+import { LibraryStore } from "./library-store";
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -36,7 +38,11 @@ const authority = `${host}:${port}`;
 const origin = `http://${authority}`;
 const distribution = fileURLToPath(new URL("../../dist/", import.meta.url));
 const token = randomBytes(32).toString("hex");
-const store = new BoardStore(join(dataDirectory, "boards"));
+const store = new BoardStore(
+  join(dataDirectory, "boards"),
+  join(dataDirectory, "trash"),
+);
+const library = new LibraryStore(join(dataDirectory, "library.json"));
 const inbox = new CommandInbox(store);
 const snapshotBody = z.object({
   expectedRevision: revision,
@@ -127,20 +133,47 @@ const routeApi = async (
       })
       .parse(await requestBody(request));
     const imported: string[] = [];
+    let trashed = 0;
     for (const page of input.pages) {
-      imported.push(
-        (
-          await store.importBoard(
-            page.tracepinId,
-            page.name,
-            page.scene,
-            page.archivedAt,
-          )
-        ).id,
+      const board = await store.importBoard(
+        page.tracepinId,
+        page.name,
+        page.scene,
+        page.archivedAt,
       );
+      if (board) {
+        imported.push(board.id);
+      } else {
+        trashed += 1;
+      }
     }
-    respond(response, imported);
+    respond(response, { imported, trashed });
     return;
+  }
+  if (resource === "library" && !id && !mcp) {
+    if (method === "GET") {
+      respond(response, await library.read());
+      return;
+    }
+    if (method === "PATCH") {
+      respond(
+        response,
+        await library.apply(
+          libraryChangesSchema.parse(await requestBody(request)),
+        ),
+      );
+      return;
+    }
+  }
+  if (resource === "trash" && !mcp) {
+    if (!id && method === "GET") {
+      respond(response, await store.listTrash());
+      return;
+    }
+    if (id && action === "restore" && method === "POST") {
+      respond(response, await store.restore(boardId.parse(id)));
+      return;
+    }
   }
   if (resource === "commands" && method === "POST" && mcp) {
     respond(
@@ -166,6 +199,13 @@ const routeApi = async (
   const board = boardId.parse(id);
   if (!action && method === "GET") {
     respond(response, await store.read(board));
+    return;
+  }
+  if (!action && method === "DELETE" && !mcp) {
+    const body = z
+      .object({ expectedRevision: revision })
+      .parse(await requestBody(request));
+    respond(response, await store.remove(board, body.expectedRevision));
     return;
   }
   if (!action && method === "PUT" && !mcp) {
@@ -257,12 +297,15 @@ const serve = async (
       "Fichier introuvable. Lancez d’abord le build Excalidraw.",
     );
   }
+  // connect-src allows only the two hosts the SDK accepts for "Browse libraries"
+  // installs (its default validateLibraryUrl list). Editing itself stays same-origin.
   response.writeHead(200, {
     "Content-Type": contentTypes[extname(file)] ?? "application/octet-stream",
     "Content-Length": metadata.size,
+    ...(extname(file) === ".html" ? { "Cache-Control": "no-store" } : {}),
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy":
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' https://libraries.excalidraw.com https://raw.githubusercontent.com/excalidraw/excalidraw-libraries/; frame-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'",
   });
   if (request.method === "HEAD") {
     response.end();

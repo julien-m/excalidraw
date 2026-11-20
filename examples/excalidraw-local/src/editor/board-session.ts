@@ -1,22 +1,50 @@
 import {
   CaptureUpdateAction,
   exportToBlob,
+  getCommonBounds,
   hashElementsVersion,
+  sceneCoordsToViewportCoords,
 } from "@local/excalidraw-sdk";
 
-import { applyCommands } from "./apply-commands";
+import { maxSceneElements, sceneSchema } from "../board/scene";
+import { t } from "../ui/messages";
 
-import { request } from "./client";
+import { applyCommands } from "./apply-commands";
+import { templateCommands } from "./board-templates";
+import { BoundArrowDeletion } from "./bound-arrow-deletion";
+
+import { RequestError, request } from "./client";
+import {
+  addBlockLabel,
+  buildDiagramRoot,
+  buildLinkedBlock,
+  isBlock,
+} from "./linked-block";
+import {
+  addMindBranch,
+  layoutMindMap,
+  mindNode,
+  startMindMap,
+} from "./mind-map";
+
+import { editSelection } from "./selection-edit";
 
 import type {
   AppState,
   BinaryFiles,
   ExcalidrawImperativeAPI,
 } from "@local/excalidraw-sdk/types";
-import type { OrderedExcalidrawElement } from "@local/excalidraw-sdk/element/types";
+import type {
+  ExcalidrawElement,
+  OrderedExcalidrawElement,
+} from "@local/excalidraw-sdk/element/types";
 
 import type { PendingCommand } from "../board/commands";
 import type { Board, Checkpoint, Scene } from "../board/scene";
+import type { BoardTemplate } from "./board-templates";
+import type { Direction } from "./linked-block";
+import type { SelectionEdit } from "./selection-edit";
+import type { BlockIds, MindMapSubject } from "./mind-map";
 
 const debounceMs = 350;
 const pollMs = 450;
@@ -24,7 +52,7 @@ const pollMs = 450;
 type Report = (text: string) => void;
 
 const asScene = (
-  elements: readonly OrderedExcalidrawElement[],
+  elements: readonly ExcalidrawElement[],
   state: AppState,
   files: BinaryFiles,
 ): Scene => {
@@ -73,9 +101,17 @@ export class BoardSession {
   private saveTimer?: number;
   private pollTimer?: number;
   private importing = false;
+  private leaving = false;
   private polling = false;
   private gesture = false;
   private stopped = false;
+  private readonly arrowDeletion = new BoundArrowDeletion();
+  private linkedDraft?: {
+    blockId: string;
+    labelId: string;
+    arrowId: string;
+    original: readonly OrderedExcalidrawElement[];
+  };
 
   constructor(private readonly board: Board, private readonly report: Report) {
     this.revision = board.revision;
@@ -94,6 +130,17 @@ export class BoardSession {
     state: AppState,
     files: BinaryFiles,
   ): void => {
+    if (this.linkedDraft) {
+      return;
+    }
+    const reconciled = this.arrowDeletion.reconcile(elements);
+    if (reconciled !== elements) {
+      this.api?.updateScene({
+        elements: reconciled,
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+      elements = reconciled;
+    }
     const key = fingerprint(elements, state, files);
     if (this.lastKey === undefined || this.importing) {
       this.lastKey = key;
@@ -113,6 +160,227 @@ export class BoardSession {
     if (!active && this.next) {
       this.scheduleSave();
     }
+  };
+
+  /** Stages a native block and arrow until the inline label is confirmed. */
+  beginLinkedBlock = (
+    sourceId: string,
+    direction: Direction,
+    ids: BlockIds,
+  ): void => {
+    this.stageBlock(ids, (original) => {
+      const source = original.find((item) => item.id === sourceId);
+      if (!source || source.isDeleted || !isBlock(source) || source.locked) {
+        throw new Error(t("diagram.busy"));
+      }
+      return buildLinkedBlock(
+        original,
+        source,
+        direction,
+        ids.blockId,
+        ids.arrowId,
+      );
+    });
+  };
+
+  beginDiagram = (ids: BlockIds, position: { x: number; y: number }): void => {
+    this.stageBlock(ids, (original) => [
+      ...original,
+      buildDiagramRoot(ids.blockId, position),
+    ]);
+  };
+
+  beginMindMap = (ids: BlockIds, subject: MindMapSubject): void => {
+    this.stageBlock(ids, (original) =>
+      "position" in subject
+        ? startMindMap(original, ids, subject.position)
+        : addMindBranch(original, ids, subject.sourceId, subject.relation),
+    );
+  };
+
+  updateSelection = (
+    id: string,
+    edit: SelectionEdit,
+    makeId: () => string,
+  ): void => {
+    const api = this.requireEditor();
+    const state = api.getAppState();
+    const elements = api.getSceneElementsIncludingDeleted();
+    const target = elements.find(
+      (element) => element.id === id && !element.isDeleted && !element.locked,
+    );
+    if (
+      this.stopped ||
+      this.importing ||
+      this.linkedDraft ||
+      !target ||
+      !state.selectedElementIds[id]
+    ) {
+      throw new Error(t("diagram.busy"));
+    }
+    const next = editSelection(elements, target, edit, makeId);
+    if (next === elements) {
+      return;
+    }
+    if (!sceneSchema.safeParse(asScene(next, state, api.getFiles())).success) {
+      throw new Error(t("diagram.noSpace"));
+    }
+    api.updateScene({
+      elements: next,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  };
+
+  private stageBlock(
+    ids: BlockIds,
+    build: (
+      original: readonly OrderedExcalidrawElement[],
+    ) => readonly ExcalidrawElement[],
+  ): void {
+    const api = this.requireEditor();
+    const state = api.getAppState();
+    if (
+      this.stopped ||
+      this.importing ||
+      this.linkedDraft ||
+      state.editingTextElement ||
+      state.viewModeEnabled
+    ) {
+      throw new Error(t("diagram.busy"));
+    }
+    const files = api.getFiles();
+    const original = api.getSceneElementsIncludingDeleted();
+    if (original.length + 3 > maxSceneElements) {
+      throw new Error(t("diagram.capacity"));
+    }
+    const elements = build(original);
+    if (!sceneSchema.safeParse(asScene(elements, state, files)).success) {
+      throw new Error(t("diagram.noSpace"));
+    }
+    this.lastKey ??= fingerprint(original, state, files);
+    this.linkedDraft = { ...ids, original };
+    api.updateScene({
+      elements,
+      appState: {
+        selectedElementIds: { [ids.blockId]: true },
+        selectedGroupIds: {},
+      },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    });
+    const target = elements.find((element) => element.id === ids.blockId);
+    if (target) {
+      const viewport = { ...state, offsetLeft: 0, offsetTop: 0 };
+      const { x, y } = sceneCoordsToViewportCoords(
+        {
+          sceneX: target.x + target.width / 2,
+          sceneY: target.y + target.height / 2,
+        },
+        viewport,
+      );
+      if (x < 80 || x > state.width - 80 || y < 64 || y > state.height - 64) {
+        api.scrollToContent(target, { animate: false });
+      }
+    }
+  }
+
+  /** Commits the pair and its bound label as one canvas undo entry. */
+  finishLinkedBlock = (text: string): void => {
+    const draft = this.linkedDraft;
+    if (!draft) {
+      return;
+    }
+    const api = this.requireEditor();
+    const original = api.getSceneElementsIncludingDeleted();
+    const target = original.find((item) => item.id === draft.blockId);
+    if (!target || target.isDeleted || !isBlock(target)) {
+      this.linkedDraft = undefined;
+      throw new Error(t("diagram.labelFailed"));
+    }
+    const labeled = text.trim()
+      ? addBlockLabel(original, target, text, draft.labelId, draft.arrowId)
+      : original;
+    const node = mindNode(target);
+    const elements = node ? layoutMindMap(labeled, node) : labeled;
+    if (
+      !sceneSchema.safeParse(
+        asScene(elements, api.getAppState(), api.getFiles()),
+      ).success
+    ) {
+      throw new Error(t("diagram.labelFailed"));
+    }
+    // The SDK filters uncommitted objects out of immediate history captures.
+    // Restore the pre-draft scene, then submit the whole operation synchronously.
+    api.updateScene({
+      elements: draft.original,
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    });
+    api.updateScene({
+      elements,
+      appState: { selectedElementIds: { [draft.blockId]: true } },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    this.linkedDraft = undefined;
+    this.changed(
+      api.getSceneElementsIncludingDeleted(),
+      api.getAppState(),
+      api.getFiles(),
+    );
+  };
+
+  /** Appends a template as one editable, undoable canvas operation. */
+  insertTemplate = async (template: BoardTemplate): Promise<void> => {
+    const api = this.requireEditor();
+    await this.flush();
+    const elements = api.getSceneElementsIncludingDeleted();
+    const files = api.getFiles();
+    const state = api.getAppState();
+    const before = fingerprint(elements, state, files);
+    const active = elements.filter((element) => !element.isDeleted);
+    const [, top, right] = getCommonBounds(active);
+    const x = active.length ? right + 80 : 80;
+    const y = active.length ? top : 80;
+    const { elements: inserted } = await applyCommands(
+      [],
+      {},
+      templateCommands(template, crypto.randomUUID(), { x, y }),
+    );
+    if (
+      this.stopped ||
+      this.gesture ||
+      this.importing ||
+      this.linkedDraft ||
+      api.getAppState().editingTextElement ||
+      before !==
+        fingerprint(
+          api.getSceneElementsIncludingDeleted(),
+          api.getAppState(),
+          api.getFiles(),
+        )
+    ) {
+      throw new Error("Terminez l’édition en cours, puis réessayez.");
+    }
+    const nextElements = [...elements, ...inserted];
+    if (!sceneSchema.safeParse(asScene(nextElements, state, files)).success) {
+      throw new Error(t("template.outsideBoard"));
+    }
+    api.updateScene({
+      elements: [
+        ...elements,
+        ...inserted.map((element) => ({ ...element, index: null })),
+      ],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    this.lastKey ??= before;
+    this.changed(
+      api.getSceneElementsIncludingDeleted(),
+      api.getAppState(),
+      files,
+    );
+    api.scrollToContent(inserted, {
+      fitToViewport: true,
+      viewportZoomFactor: 0.75,
+    });
+    await this.flush();
   };
 
   start = (): (() => void) => {
@@ -137,7 +405,7 @@ export class BoardSession {
   private scheduleSave(): void {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      if (!this.gesture && !this.importing) {
+      if (!this.gesture && !this.importing && !this.leaving) {
         void this.flush().catch((error) => this.report(errorMessage(error)));
       }
     }, debounceMs);
@@ -175,8 +443,51 @@ export class BoardSession {
     }
   };
 
+  /** Preserves edits in a separate board when the open revision can no longer be saved. */
+  leave = async (): Promise<string | undefined> => {
+    if (this.importing || this.leaving) {
+      throw new Error(t("diagram.busy"));
+    }
+    this.leaving = true;
+    try {
+      try {
+        await this.flush();
+        return undefined;
+      } catch (error) {
+        const scene = this.next;
+        if (
+          !(error instanceof RequestError) ||
+          error.status !== 409 ||
+          !scene
+        ) {
+          throw error;
+        }
+        const suffix = t("editor.recoverySuffix");
+        const recovered = await request<Board>("boards", "POST", {
+          name: `${this.board.name.slice(0, 180 - suffix.length)}${suffix}`,
+          scene,
+        });
+        if (this.next !== scene) {
+          throw new Error(
+            t("editor.recoveryPending", { name: recovered.name }),
+          );
+        }
+        this.next = undefined;
+        return recovered.name;
+      }
+    } finally {
+      this.leaving = false;
+    }
+  };
+
   hasPending = (): boolean =>
-    Boolean(this.next || this.saving || this.importing);
+    Boolean(
+      this.next ||
+        this.saving ||
+        this.importing ||
+        this.leaving ||
+        this.linkedDraft,
+    );
 
   archive = async (): Promise<Checkpoint> => {
     if (this.importing) {
@@ -199,6 +510,7 @@ export class BoardSession {
     if (
       this.importing ||
       this.gesture ||
+      this.linkedDraft ||
       api.getAppState().editingTextElement
     ) {
       throw new Error("Terminez l’édition avant de copier le tableau.");
@@ -259,7 +571,9 @@ export class BoardSession {
       this.stopped ||
       this.polling ||
       this.importing ||
-      this.gesture
+      this.leaving ||
+      this.gesture ||
+      this.linkedDraft
     ) {
       return;
     }
@@ -275,7 +589,9 @@ export class BoardSession {
         !job ||
         this.stopped ||
         this.importing ||
+        this.leaving ||
         this.gesture ||
+        this.linkedDraft ||
         this.api.getAppState().editingTextElement
       ) {
         return;
@@ -285,7 +601,9 @@ export class BoardSession {
       if (
         this.stopped ||
         this.importing ||
+        this.leaving ||
         this.gesture ||
+        this.linkedDraft ||
         api.getAppState().editingTextElement
       ) {
         return;
@@ -306,7 +624,9 @@ export class BoardSession {
       if (
         this.stopped ||
         this.importing ||
+        this.leaving ||
         this.gesture ||
+        this.linkedDraft ||
         this.next ||
         version !==
           fingerprint(

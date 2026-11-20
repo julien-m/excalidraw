@@ -28,6 +28,7 @@ export const commandSchema = z.discriminatedUnion("kind", [
     shape: z.enum(["rectangle", "diamond", "ellipse"]),
     text: text.optional(),
     color: color.optional(),
+    fill: color.optional(),
   }),
   placement.extend({
     kind: z.literal("text"),
@@ -46,6 +47,9 @@ export const commandSchema = z.discriminatedUnion("kind", [
     from: objectId,
     to: objectId,
     text: text.optional(),
+    color: color.optional(),
+    routing: z.enum(["straight", "elbow"]).optional(),
+    arrowhead: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal("move"),

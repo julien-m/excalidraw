@@ -11,6 +11,7 @@ export const imageData = z
   .string()
   .regex(/^data:image\/(png|jpeg|gif|webp|avif);base64,[A-Za-z0-9+/]+={0,2}$/);
 export const maxRequestBytes = 128 * 1024 * 1024;
+export const maxSceneElements = 10_000;
 
 const element = z.looseObject({
   id: objectId,
@@ -45,7 +46,7 @@ const file = z.looseObject({
 
 export const sceneSchema = z
   .object({
-    elements: z.array(element).max(10_000),
+    elements: z.array(element).max(maxSceneElements),
     appState: z.object({
       viewBackgroundColor: color,
       scrollX: coordinate.optional(),
@@ -115,9 +116,51 @@ export const boardSchema = z.object({
   tracepinId: boardId.optional(),
 });
 
+/**
+ * A board moved to the trash keeps its whole record, history included. The deletion time
+ * is written just after the atomic move and can be missing if that write was interrupted.
+ */
+export const trashedBoardSchema = boardSchema.extend({
+  deletedAt: z.iso.datetime().optional(),
+});
+
+// Library items come from third-party `.excalidrawlib` files. Only the fields the
+// store relies on are checked; the SDK restores and normalizes the elements on load.
+const libraryElement = z.looseObject({
+  id: objectId,
+  type: z.string().min(1).max(64),
+});
+
+// 5 000 items and 10 000 elements per item stay far above public libraries
+// (the largest have a few hundred items) while bounding a corrupted file.
+export const libraryItemSchema = z.looseObject({
+  id: objectId,
+  status: z.enum(["published", "unpublished"]),
+  created: z.number().finite(),
+  name: z.string().max(500).optional(),
+  elements: z.array(libraryElement).min(1).max(10_000),
+});
+
+export const librarySchema = z.object({
+  libraryItems: z.array(libraryItemSchema).max(5_000),
+});
+
+/** Changes one editor made relative to the library it last loaded or saved. */
+export const libraryChangesSchema = z.object({
+  upsert: z.array(libraryItemSchema).max(5_000),
+  remove: z.array(objectId).max(5_000),
+});
+
 export type Board = z.infer<typeof boardSchema>;
+export type TrashedBoard = z.infer<typeof trashedBoardSchema>;
 export type Checkpoint = z.infer<typeof checkpointSchema>;
+export type Library = z.infer<typeof librarySchema>;
+export type LibraryChanges = z.infer<typeof libraryChangesSchema>;
 export type BoardSummary = Pick<
   Board,
   "id" | "name" | "revision" | "updatedAt" | "tracepinId"
->;
+> & { versions: number };
+export type TrashedBoardSummary = Pick<
+  TrashedBoard,
+  "id" | "name" | "tracepinId"
+> & { deletedAt: string; versions: number };

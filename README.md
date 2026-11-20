@@ -1,6 +1,6 @@
 # Excalidraw
 
-An independent fork of Excalidraw for editing diagrams with a mouse and a local MCP client. It adds local saving, editable history, Tracepin board import and portable `.excalidraw` files.
+An independent fork of Excalidraw for editing diagrams with a mouse and a local MCP client. It adds local saving, editable history and portable `.excalidraw` files.
 
 ## Run the local editor
 
@@ -12,7 +12,7 @@ yarn workspace @local/excalidraw build
 yarn workspace @local/excalidraw start
 ```
 
-Open [the local editor](http://127.0.0.1:4320). Read [the workspace guide](examples/excalidraw-local/README.md) for MCP setup, backups, Tracepin import and verification. On macOS, boards live in `~/Library/Application Support/Excalidraw Local/boards/`.
+Open [the local editor](http://127.0.0.1:4320). Read [the workspace guide](examples/excalidraw-local/README.md) for MCP setup, backups and verification. On macOS, boards live in `~/Library/Application Support/Excalidraw Local/boards/`.
 
 ## Upstream Excalidraw
 
